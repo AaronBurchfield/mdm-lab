@@ -1,0 +1,23 @@
+FROM golang:1.19-alpine as builder
+
+ARG KMFDDM_VERSION="v0.3.1"
+
+ENV CGO_ENABLED=0 \
+    GOARCH=amd64 \
+    GOOS=linux
+
+RUN apk add --no-cache ca-certificates git make
+
+WORKDIR /src/kmfddm
+RUN : \
+    && git clone https://github.com/jessepeterson/kmfddm /src/kmfddm \
+    && git checkout ${KMFDDM_VERSION} \
+    && make \
+    && :
+
+FROM alpine:latest
+RUN apk add --no-cache dumb-init ca-certificates
+COPY --from=builder /src/kmfddm/kmfddm-linux-amd64 /usr/bin/kmfddm
+
+ENTRYPOINT ["/usr/bin/dumb-init", "--"]
+CMD ["/usr/bin/kmfddm"]

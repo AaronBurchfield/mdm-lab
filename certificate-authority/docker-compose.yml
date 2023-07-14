@@ -1,0 +1,23 @@
+services:
+  scepserver:
+    build:
+      dockerfile: Dockerfile.scepserver
+      context: .
+    volumes:
+      - ./ca:/depot
+    restart: unless-stopped
+    networks:
+      - traefik
+    environment:
+      - SCEP_CHALLENGE:${SCEP_CHALLENGE}
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=traefik
+      - traefik.http.routers.mdmca.entrypoints=websecure
+      - traefik.http.routers.mdmca.tls.certresolver=letsencrypt
+      - traefik.http.routers.mdmca.rule=Host(`ca.${DOMAIN}`)
+      - traefik.http.services.mdmca.loadbalancer.server.port=8080
+
+networks:
+  traefik:
+    external: true

@@ -1,0 +1,38 @@
+services:
+  traefik:
+    image: traefik:2.10
+    command:
+      - --api.insecure=false
+      - --api.dashboard=true
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.letsencrypt.acme.email=${EMAIL}
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
+      - --certificatesresolvers.letsencrypt.acme.storage=/certs/acme.json
+      - --log.filePath=/logs/traefik.log
+      - --accesslog.filepath=/logs/access.log
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./certs:/certs
+      - ./logs:/logs
+    restart: unless-stopped
+    networks:
+      - traefik
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.dashboard.tls.certresolver=letsencrypt
+      - traefik.http.routers.dashboard.rule=Host(`traefik.${DOMAIN}`)
+      - traefik.http.routers.dashboard.service=api@internal
+      - traefik.http.routers.dashboard.entrypoints=websecure
+      - traefik.http.routers.dashboard.middlewares=dashboard-auth
+      - traefik.http.services.dashboard.loadbalancer.server.port=8080
+      - traefik.http.middlewares.dashboard-auth.basicauth.users=${DASHBOARD_AUTHENTICATION}
+
+networks:
+  traefik:
+    name: traefik

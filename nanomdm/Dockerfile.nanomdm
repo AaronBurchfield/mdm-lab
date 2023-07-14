@@ -1,0 +1,23 @@
+FROM golang:1.19-alpine as builder
+
+ARG NANOMDM_VERSION="v0.5.0"
+
+ENV CGO_ENABLED=0 \
+    GOARCH=amd64 \
+    GOOS=linux
+
+RUN apk add --no-cache ca-certificates git make
+
+WORKDIR /src/nanomdm
+RUN : \
+    && git clone https://github.com/micromdm/nanomdm /src/nanomdm \
+    && git checkout ${NANOMDM_VERSION} \
+    && make nanomdm-linux-amd64 \
+    && :
+
+FROM alpine:latest
+RUN apk add --no-cache dumb-init ca-certificates
+COPY --from=builder /src/nanomdm/nanomdm-linux-amd64 /usr/bin/nanomdm
+
+ENTRYPOINT ["/usr/bin/dumb-init", "--"]
+CMD ["/usr/bin/nanomdm"]

@@ -1,0 +1,71 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    networks:
+      - traefik
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data
+      - ./postgres_init:/docker-entrypoint-initdb.d/
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${NANOMDM_DB_PASSWORD}
+      - POSTGRES_DB=nanomdm
+
+  nanomdm:
+    deploy:
+      replicas: 2
+    build:
+      dockerfile: Dockerfile.nanomdm
+      context: .
+    command:
+      - /usr/bin/nanomdm
+      - -storage=pgsql
+      - -dsn=postgres://postgres:${NANOMDM_DB_PASSWORD}@postgres/nanomdm?sslmode=disable
+      - -storage-options=delete=1
+      - -ca=/data/ca.pem
+      - -api=${NANOMDM_API_KEY}
+      - -dm=https://ddm.${DOMAIN}/
+      - -listen=:9000
+      - -debug
+    volumes:
+      - ./data:/data:ro
+    restart: unless-stopped
+    networks:
+      - traefik
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=traefik
+      - traefik.http.routers.nanomdm.entrypoints=websecure
+      - traefik.http.routers.nanomdm.tls.certresolver=letsencrypt
+      - traefik.http.routers.nanomdm.rule=Host(`nanomdm.${DOMAIN}`)
+      - traefik.http.services.nanomdm.loadbalancer.server.port=9000
+
+  kmfddm:
+    build:
+      dockerfile: Dockerfile.kmfddm
+      context: .
+    command:
+      - /usr/bin/kmfddm
+      - -api=${KMFDDM_API_KEY}
+      - -enqueue=https://nanomdm-api.${DOMAIN}/v1/enqueue/
+      - -enqueue-key=${NANOMDM_API_KEY}
+      - -storage=file
+      - -storage-dsn=/db
+      - -debug
+    volumes:
+      - ./ddm_data:/db
+    restart: unless-stopped
+    networks:
+      - traefik
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=traefik
+      - traefik.http.routers.ddm.entrypoints=websecure
+      - traefik.http.routers.ddm.tls.certresolver=letsencrypt
+      - traefik.http.routers.ddm.rule=Host(`ddm.${DOMAIN}`)
+      - traefik.http.services.ddm.loadbalancer.server.port=9002
+
+networks:
+  traefik:
+    external: true

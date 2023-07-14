@@ -1,0 +1,25 @@
+FROM golang:1.19-alpine as builder
+
+ARG SCEP_VERSION="main"
+
+ENV CGO_ENABLED=0 \
+    GOARCH=amd64 \
+    GOOS=linux
+
+RUN apk add --no-cache ca-certificates git make
+
+WORKDIR /src/scep
+RUN : \
+    && git clone https://github.com/micromdm/scep /src/scep \
+    && git checkout ${SCEP_VERSION} \
+    && make scepserver-linux-amd64 \
+    && :
+
+FROM alpine:latest
+RUN apk add --no-cache dumb-init ca-certificates
+COPY --from=builder /src/scep/scepserver-linux-amd64 /usr/bin/scepserver
+COPY init.sh /init.sh
+
+VOLUME ["/depot"]
+ENTRYPOINT ["/usr/bin/dumb-init", "--"]
+CMD ["/init.sh"]
