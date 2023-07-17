@@ -48,7 +48,7 @@ services:
     command:
       - /usr/bin/kmfddm
       - -api=${KMFDDM_API_KEY}
-      - -enqueue=https://nanomdm-api.${DOMAIN}/v1/enqueue/
+      - -enqueue=https://nanomdm.${DOMAIN}/v1/enqueue/
       - -enqueue-key=${NANOMDM_API_KEY}
       - -storage=file
       - -storage-dsn=/db
